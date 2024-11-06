@@ -1,0 +1,91 @@
+{% extends 'main.html' %}
+
+{% block title %}Chatbot Interface{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h2 class="text-center mb-0">Chat with AI</h2>
+            </div>
+            <div class="card-body">
+                <div class="chat-container" id="chatContainer">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="message {% if message.is_user %}user-message{% else %}bot-message{% endif %}">
+                                {{ message.content }}
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+
+                <form method="post" id="chatForm">
+                    {% csrf_token %}
+                    <div class="input-group">
+                        <input type="text" 
+                               class="form-control" 
+                               id="user_input" 
+                               name="user_input" 
+                               placeholder="Type your message here..."
+                               required>
+                        <button class="btn btn-primary" type="submit">Send</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Auto-scroll to bottom of chat container
+    function scrollToBottom() {
+        const chatContainer = document.getElementById('chatContainer');
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    // Call scrollToBottom when page loads and after form submission
+    document.addEventListener('DOMContentLoaded', scrollToBottom);
+    
+    // Optional: Add AJAX form submission to avoid page reload
+    document.getElementById('chatForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const form = this;
+        const input = form.querySelector('#user_input');
+        const chatContainer = document.getElementById('chatContainer');
+        
+        // Add user message to chat
+        const userMessage = document.createElement('div');
+        userMessage.className = 'message user-message';
+        userMessage.textContent = input.value;
+        chatContainer.appendChild(userMessage);
+        
+        // Send request to server
+        fetch(form.action, {
+            method: 'POST',
+            body: new FormData(form),
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Add bot message to chat
+            const botMessage = document.createElement('div');
+            botMessage.className = 'message bot-message';
+            botMessage.textContent = data.response;
+            chatContainer.appendChild(botMessage);
+            
+            // Clear input and scroll to bottom
+            input.value = '';
+            scrollToBottom();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+    });
+</script>
+{% endblock %}

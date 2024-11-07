@@ -11,11 +11,19 @@ from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 import os
+import pickle
+
+# Set NLTK data directory
+nltk_data_dir = os.path.join(os.path.expanduser('~'), 'nltk_data')
+if not os.path.exists(nltk_data_dir):
+    os.makedirs(nltk_data_dir)
+nltk.data.path.append(nltk_data_dir)
 
 # Download required NLTK data
-nltk.download('punkt')
-nltk.download('stopwords')
-nltk.download('wordnet')
+nltk.download('punkt', download_dir=nltk_data_dir)
+nltk.download('stopwords', download_dir=nltk_data_dir)
+nltk.download('wordnet', download_dir=nltk_data_dir)
+nltk.download('punkt_tab')
 
 class ChatbotTrainer:
     def __init__(self, training_data_path):
@@ -88,33 +96,26 @@ class ChatbotTrainer:
         
         # Save the model, vectorizer, and label encoder
         model.save(model_save_path)
+        with open(model_save_path.replace('.h5', '_vectorizer.pkl'), 'wb') as f:
+            pickle.dump(self.vectorizer, f)
+        with open(model_save_path.replace('.h5', '_label_encoder.pkl'), 'wb') as f:
+            pickle.dump(self.label_encoder, f)
         return model
 
 class Chatbot:
     def __init__(self, model_path, training_data_path):
         self.model = tf.keras.models.load_model(model_path)
-        self.vectorizer = TfidfVectorizer(max_features=1000)
-        self.label_encoder = LabelEncoder()
+        self.vectorizer = self.load_pickle(model_path.replace('.h5', '_vectorizer.pkl'))
+        self.label_encoder = self.load_pickle(model_path.replace('.h5', '_label_encoder.pkl'))
         self.training_data = self.load_training_data(training_data_path)
-        self.fit_vectorizer()
-        self.fit_label_encoder()
     
     def load_training_data(self, path):
         with open(path, 'r') as f:
             return json.load(f)
     
-    def fit_vectorizer(self):
-        texts = []
-        for intent in self.training_data['intents']:
-            for pattern in intent['patterns']:
-                texts.append(self.preprocess_text(pattern))
-        self.vectorizer.fit(texts)
-    
-    def fit_label_encoder(self):
-        labels = []
-        for intent in self.training_data['intents']:
-            labels.append(intent['tag'])
-        self.label_encoder.fit(labels)
+    def load_pickle(self, path):
+        with open(path, 'rb') as f:
+            return pickle.load(f)
     
     def preprocess_text(self, text):
         lemmatizer = WordNetLemmatizer()
